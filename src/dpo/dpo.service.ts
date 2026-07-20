@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { JsonDatabaseService } from '../database/json-database.service';
+import { PrismaDatabaseService } from '../database/prisma-database.service';
 import {
   DashboardSummary,
   DpoRecord,
@@ -15,17 +15,28 @@ import {
 } from './dpo.types';
 import { resourceSchemas } from './dpo.seed';
 
+const dashboardResources: ResourceName[] = [
+  'members',
+  'membership-applications',
+  'active-designations',
+  'designation-applications',
+  'complaints',
+  'payments',
+  'donations',
+  'wireless-devices',
+];
+
 @Injectable()
 export class DpoService {
   private readonly schemas = new Map<ResourceName, ResourceSchema>(
     resourceSchemas.map((schema) => [schema.resource, schema]),
   );
 
-  constructor(private readonly database: JsonDatabaseService) {}
+  constructor(private readonly database: PrismaDatabaseService) {}
 
   getHealth() {
     return {
-      name: 'Defender of Pakistan Organization API',
+      name: 'Defenders of Pakistan Organization API',
       shortCode: 'DPO',
       status: 'ok',
       version: '0.1.0',
@@ -37,15 +48,22 @@ export class DpoService {
     return resourceSchemas;
   }
 
-  getDashboard(): DashboardSummary {
-    const members = this.collection('members');
-    const applications = this.collection('membership-applications');
-    const designations = this.collection('active-designations');
-    const designationApplications = this.collection('designation-applications');
-    const complaints = this.collection('complaints');
-    const payments = this.collection('payments');
-    const donations = this.collection('donations');
-    const devices = this.collection('wireless-devices');
+  async getDatabaseStatus() {
+    return this.database.stats(
+      resourceSchemas.map((schema) => schema.resource),
+    );
+  }
+
+  async getDashboard(): Promise<DashboardSummary> {
+    const data = await this.database.allCollections(dashboardResources);
+    const members = data.members;
+    const applications = data['membership-applications'];
+    const designations = data['active-designations'];
+    const designationApplications = data['designation-applications'];
+    const complaints = data.complaints;
+    const payments = data.payments;
+    const donations = data.donations;
+    const devices = data['wireless-devices'];
 
     const paidPayments = payments.filter(
       (payment) => payment.status === 'paid',
@@ -113,11 +131,15 @@ export class DpoService {
     };
   }
 
-  list(resource: ResourceName, query: ListQuery = {}): ListResponse {
+  async list(
+    resource: ResourceName,
+    query: ListQuery = {},
+  ): Promise<ListResponse> {
     const schema = this.schema(resource);
     const page = Math.max(Number(query.page ?? 1), 1);
     const limit = Math.min(Math.max(Number(query.limit ?? 25), 1), 100);
-    const filtered = this.collection(resource).filter((record) => {
+    const collection = await this.collection(resource);
+    const filtered = collection.filter((record) => {
       const searchMatch =
         !query.q ||
         schema.searchableFields.some((field) =>
@@ -152,8 +174,10 @@ export class DpoService {
     };
   }
 
-  get(resource: ResourceName, id: string): DpoRecord {
-    const record = this.collection(resource).find((item) => item.id === id);
+  async get(resource: ResourceName, id: string): Promise<DpoRecord> {
+    const record = (await this.collection(resource)).find(
+      (item) => item.id === id,
+    );
     if (!record) {
       throw new NotFoundException(`${resource} record not found`);
     }
@@ -161,7 +185,10 @@ export class DpoService {
     return record;
   }
 
-  create(resource: ResourceName, payload: Record<string, unknown>): DpoRecord {
+  async create(
+    resource: ResourceName,
+    payload: Record<string, unknown>,
+  ): Promise<DpoRecord> {
     this.schema(resource);
     const timestamp = new Date().toISOString();
     const record: DpoRecord = {
@@ -172,34 +199,34 @@ export class DpoService {
       status: this.toStatus(payload.status),
     };
 
-    this.database.insert(resource, record);
-    this.audit('system', 'create', resource, record.id, { payload });
+    await this.database.insert(resource, record);
+    await this.audit('system', 'create', resource, record.id, { payload });
     return record;
   }
 
-  update(
+  async update(
     resource: ResourceName,
     id: string,
     payload: Record<string, unknown>,
-  ): DpoRecord {
-    const record = this.get(resource, id);
+  ): Promise<DpoRecord> {
+    const record = await this.get(resource, id);
     Object.assign(record, payload, { updatedAt: new Date().toISOString() });
-    this.database.save();
-    this.audit('system', 'update', resource, id, { payload });
+    await this.database.update(resource, id, record);
+    await this.audit('system', 'update', resource, id, { payload });
     return record;
   }
 
-  runAction(
+  async runAction(
     resource: ResourceName,
     id: string,
     action: string,
     payload: Record<string, unknown> = {},
-  ) {
-    const record = this.get(resource, id);
+  ): Promise<Record<string, unknown>> {
+    const record = await this.get(resource, id);
 
     if (resource === 'designation-applications' && action === 'approve') {
-      this.assertNoDuplicateDesignation(record);
-      const activeDesignation = this.create('active-designations', {
+      await this.assertNoDuplicateDesignation(record);
+      const activeDesignation = await this.create('active-designations', {
         holder: record.applicant,
         membershipNumber: payload.membershipNumber ?? null,
         designation: record.designation,
@@ -211,8 +238,8 @@ export class DpoService {
         issueDate: new Date().toISOString().slice(0, 10),
         expiryDate: payload.expiryDate ?? null,
       });
-      this.update(resource, id, { status: 'approved' });
-      return { record: this.get(resource, id), activeDesignation };
+      await this.update(resource, id, { status: 'approved' });
+      return { record: await this.get(resource, id), activeDesignation };
     }
 
     const actionStatusMap: Record<string, DpoStatus> = {
@@ -230,21 +257,24 @@ export class DpoService {
 
     const nextStatus = actionStatusMap[action];
     if (nextStatus) {
-      this.update(resource, id, {
+      await this.update(resource, id, {
         status: nextStatus,
         lastAction: action,
         actionPayload: payload,
       });
     } else {
-      this.update(resource, id, { lastAction: action, actionPayload: payload });
+      await this.update(resource, id, {
+        lastAction: action,
+        actionPayload: payload,
+      });
     }
 
-    this.audit('system', action, resource, id, payload);
-    return { record: this.get(resource, id), action };
+    await this.audit('system', action, resource, id, payload);
+    return { record: await this.get(resource, id), action };
   }
 
-  verifyMember(membershipNumber: string) {
-    const member = this.collection('members').find(
+  async verifyMember(membershipNumber: string) {
+    const member = (await this.collection('members')).find(
       (item) => item.membershipNumber === membershipNumber,
     );
     return {
@@ -261,8 +291,8 @@ export class DpoService {
     };
   }
 
-  verifyWirelessDevice(imei: string) {
-    const device = this.collection('wireless-devices').find(
+  async verifyWirelessDevice(imei: string) {
+    const device = (await this.collection('wireless-devices')).find(
       (item) => item.imei === imei,
     );
     return {
@@ -280,8 +310,8 @@ export class DpoService {
     };
   }
 
-  trackComplaint(complaintNumber: string) {
-    const complaint = this.collection('complaints').find(
+  async trackComplaint(complaintNumber: string) {
+    const complaint = (await this.collection('complaints')).find(
       (item) => item.complaintNumber === complaintNumber,
     );
     if (!complaint) {
@@ -299,20 +329,20 @@ export class DpoService {
     };
   }
 
-  getPublicCms() {
-    return this.collection('cms-pages').filter(
+  async getPublicCms() {
+    return (await this.collection('cms-pages')).filter(
       (page) => page.status === 'published',
     );
   }
 
-  getPublicGallery() {
-    return this.collection('gallery-albums').filter(
+  async getPublicGallery() {
+    return (await this.collection('gallery-albums')).filter(
       (album) => album.status === 'published',
     );
   }
 
-  getPublicWelfare() {
-    return this.collection('welfare-campaigns').filter(
+  async getPublicWelfare() {
+    return (await this.collection('welfare-campaigns')).filter(
       (campaign) => campaign.status === 'published',
     );
   }
@@ -326,7 +356,7 @@ export class DpoService {
     return schema;
   }
 
-  private collection(resource: ResourceName): DpoRecord[] {
+  private async collection(resource: ResourceName): Promise<DpoRecord[]> {
     this.schema(resource);
     return this.database.collection(resource);
   }
@@ -388,8 +418,8 @@ export class DpoService {
     return `${resource.replaceAll('-', '_')}_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
   }
 
-  private assertNoDuplicateDesignation(record: DpoRecord) {
-    const duplicate = this.collection('active-designations').find(
+  private async assertNoDuplicateDesignation(record: DpoRecord) {
+    const duplicate = (await this.collection('active-designations')).find(
       (designation) =>
         designation.status === 'active' &&
         designation.designation === record.designation &&
@@ -404,15 +434,15 @@ export class DpoService {
     }
   }
 
-  private audit(
+  private async audit(
     actor: string,
     action: string,
     resource: string,
     resourceId: string,
     meta: unknown,
-  ) {
+  ): Promise<void> {
     const timestamp = new Date().toISOString();
-    this.database.insert('audit-logs', {
+    await this.database.insert('audit-logs', {
       id: this.nextId('audit-logs'),
       createdAt: timestamp,
       updatedAt: timestamp,

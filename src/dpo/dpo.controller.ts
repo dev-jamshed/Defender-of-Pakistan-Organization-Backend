@@ -29,6 +29,11 @@ export class DpoController {
     return this.dpoService.getDashboard();
   }
 
+  @Get('admin/database/status')
+  databaseStatus() {
+    return this.dpoService.getDatabaseStatus();
+  }
+
   @Get('admin/:resource')
   list(@Param('resource') resource: string, @Query() query: ListQuery) {
     return this.dpoService.list(resource as ResourceName, query);

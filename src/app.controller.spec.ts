@@ -17,7 +17,7 @@ describe('AppController', () => {
   describe('root', () => {
     it('should return the DPO API descriptor', () => {
       expect(appController.getHello()).toMatchObject({
-        name: 'Defender of Pakistan Organization API',
+        name: 'Defenders of Pakistan Organization API',
         shortCode: 'DPO',
         status: 'running',
       });

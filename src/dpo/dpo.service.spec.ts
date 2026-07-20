@@ -1,25 +1,33 @@
 import { BadRequestException } from '@nestjs/common';
-import { JsonDatabaseService } from '../database/json-database.service';
+import { PrismaDatabaseService } from '../database/prisma-database.service';
 import { DpoService } from './dpo.service';
 
 describe('DpoService', () => {
   let service: DpoService;
+  let database: PrismaDatabaseService;
 
-  beforeEach(() => {
-    delete process.env.DPO_DB_PATH;
-    service = new DpoService(new JsonDatabaseService());
+  beforeEach(async () => {
+    process.env.DATABASE_FILE_PATH = ':memory:';
+    database = new PrismaDatabaseService();
+    await database.onModuleInit();
+    service = new DpoService(database);
   });
 
-  it('returns dashboard KPIs', () => {
-    const dashboard = service.getDashboard();
+  afterEach(async () => {
+    await database.onModuleDestroy();
+    delete process.env.DATABASE_FILE_PATH;
+  });
+
+  it('returns dashboard KPIs', async () => {
+    const dashboard = await service.getDashboard();
 
     expect(dashboard.kpis.totalMembers).toBeGreaterThan(0);
     expect(dashboard.kpis.monthlyRevenue).toBeGreaterThan(0);
     expect(dashboard.recent.complaints.length).toBeGreaterThan(0);
   });
 
-  it('blocks duplicate active designation in same area', () => {
-    const application = service.create('designation-applications', {
+  it('blocks duplicate active designation in same area', async () => {
+    const application = await service.create('designation-applications', {
       applicant: 'Test User',
       designation: 'District Coordinator',
       wing: 'Welfare',
@@ -30,8 +38,8 @@ describe('DpoService', () => {
       status: 'pending',
     });
 
-    expect(() =>
+    await expect(
       service.runAction('designation-applications', application.id, 'approve'),
-    ).toThrow(BadRequestException);
+    ).rejects.toThrow(BadRequestException);
   });
 });
