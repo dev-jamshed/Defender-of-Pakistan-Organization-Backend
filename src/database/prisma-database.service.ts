@@ -96,6 +96,12 @@ export class PrismaDatabaseService implements OnModuleInit, OnModuleDestroy {
     return record;
   }
 
+  async delete(resource: ResourceName, id: string): Promise<void> {
+    await this.prisma.dpoRecord.delete({
+      where: { id },
+    });
+  }
+
   async reset(): Promise<void> {
     await this.ensureSchema();
     await this.prisma.dpoRecord.deleteMany();

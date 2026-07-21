@@ -216,6 +216,16 @@ export class DpoService {
     return record;
   }
 
+  async delete(
+    resource: ResourceName,
+    id: string,
+  ): Promise<{ id: string; deleted: true }> {
+    await this.get(resource, id);
+    await this.database.delete(resource, id);
+    await this.audit('system', 'delete', resource, id, {});
+    return { id, deleted: true };
+  }
+
   async runAction(
     resource: ResourceName,
     id: string,
@@ -250,6 +260,7 @@ export class DpoService {
       resolve: 'resolved',
       close: 'closed',
       publish: 'published',
+      unpublish: 'draft',
       archive: 'archived',
       markPaid: 'paid',
       fail: 'failed',

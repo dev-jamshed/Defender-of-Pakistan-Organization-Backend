@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -59,6 +60,11 @@ export class DpoController {
     @Body() body: Record<string, unknown>,
   ) {
     return this.dpoService.update(resource as ResourceName, id, body);
+  }
+
+  @Delete('admin/:resource/:id')
+  delete(@Param('resource') resource: string, @Param('id') id: string) {
+    return this.dpoService.delete(resource as ResourceName, id);
   }
 
   @Post('admin/:resource/:id/actions/:action')
