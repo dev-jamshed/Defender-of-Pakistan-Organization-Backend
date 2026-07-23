@@ -692,19 +692,13 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       status: 'active',
     }),
   ],
-  'notification-logs': [
-    base('nl_1001', {
-      recipient: '0300-1234567',
-      channel: 'sms',
-      event: 'payment_successful',
-      status: 'active',
-      sentAt: now,
-    }),
-  ],
+  'notification-logs': [],
   'admin-users': [
     base('admin_1001', {
       name: 'Super Admin',
       email: 'admin@dpo.local',
+      passwordHash:
+        'scrypt:dpo-admin-seed-2026:aa4a4b706ef666481179cd9111b9362434a77faab86b2aa86731c1c1552392258b7eda7f45409328c7f4139552489a95474dd8da3a3ab9c449572a153b23ba2d',
       role: 'Super Admin',
       status: 'active',
       lastLoginAt: now,

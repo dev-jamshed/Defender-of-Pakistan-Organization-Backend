@@ -2,8 +2,10 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaDatabaseService } from '../database/prisma-database.service';
+import { AuthService } from './auth.service';
 import {
   DashboardSummary,
   DpoRecord,
@@ -32,7 +34,10 @@ export class DpoService {
     resourceSchemas.map((schema) => [schema.resource, schema]),
   );
 
-  constructor(private readonly database: PrismaDatabaseService) {}
+  constructor(
+    private readonly database: PrismaDatabaseService,
+    private readonly authService: AuthService,
+  ) {}
 
   getHealth() {
     return {
@@ -52,6 +57,45 @@ export class DpoService {
     return this.database.stats(
       resourceSchemas.map((schema) => schema.resource),
     );
+  }
+
+  async login(email: string, password: string) {
+    const normalizedEmail = this.toText(email).trim().toLowerCase();
+    const admin = (await this.collection('admin-users')).find(
+      (user) =>
+        this.toText(user.email).toLowerCase() === normalizedEmail &&
+        user.status !== 'suspended',
+    );
+    if (!admin) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const hasPasswordHash = typeof admin.passwordHash === 'string';
+    const validPassword = hasPasswordHash
+      ? this.authService.verifyPassword(password, admin.passwordHash)
+      : password === (process.env.DPO_BOOTSTRAP_ADMIN_PASSWORD ?? 'admin123');
+
+    if (!validPassword) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    if (!hasPasswordHash) {
+      admin.passwordHash = this.authService.hashPassword(password);
+    }
+    admin.lastLoginAt = new Date().toISOString();
+    await this.database.update('admin-users', admin.id, admin);
+
+    const user = {
+      id: admin.id,
+      name: this.toText(admin.name) || 'Admin',
+      email: this.toText(admin.email),
+      role: this.toText(admin.role) || 'Admin',
+    };
+
+    return {
+      token: this.authService.signToken(user),
+      user,
+    };
   }
 
   async getDashboard(): Promise<DashboardSummary> {
@@ -201,6 +245,7 @@ export class DpoService {
 
     await this.database.insert(resource, record);
     await this.audit('system', 'create', resource, record.id, { payload });
+    await this.notifyAdmin('created', resource, record);
     return record;
   }
 
@@ -213,6 +258,7 @@ export class DpoService {
     Object.assign(record, payload, { updatedAt: new Date().toISOString() });
     await this.database.update(resource, id, record);
     await this.audit('system', 'update', resource, id, { payload });
+    await this.notifyAdmin('updated', resource, record);
     return record;
   }
 
@@ -223,6 +269,7 @@ export class DpoService {
     await this.get(resource, id);
     await this.database.delete(resource, id);
     await this.audit('system', 'delete', resource, id, {});
+    await this.notifyAdmin('deleted', resource, { id } as DpoRecord);
     return { id, deleted: true };
   }
 
@@ -465,5 +512,46 @@ export class DpoService {
       ipAddress: '127.0.0.1',
       userAgent: 'api',
     });
+  }
+
+  private async notifyAdmin(
+    action: string,
+    resource: ResourceName,
+    record: DpoRecord,
+  ): Promise<void> {
+    if (['notification-logs', 'audit-logs'].includes(resource)) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    const title =
+      this.toText(record.name) ||
+      this.toText(record.applicant) ||
+      this.toText(record.holder) ||
+      this.toText(record.titleEnglish) ||
+      this.toText(record.subject) ||
+      this.toText(record.id);
+
+    await this.database.insert('notification-logs', {
+      id: this.nextId('notification-logs'),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      recipient: 'admin',
+      channel: 'system',
+      event: `${resource}.${action}`,
+      subject: `${this.titleText(resource)} ${action}`,
+      message: `${this.titleText(resource)} ${title} was ${action}.`,
+      resource,
+      resourceId: record.id,
+      status: 'active',
+      sentAt: timestamp,
+    });
+  }
+
+  private titleText(value: string): string {
+    return value
+      .split('-')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 }

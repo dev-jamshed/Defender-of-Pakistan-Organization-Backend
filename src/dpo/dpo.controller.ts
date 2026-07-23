@@ -7,7 +7,9 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { AdminAuthGuard } from './auth.guard';
 import { DpoService } from './dpo.service';
 import type { ListQuery, ResourceName } from './dpo.types';
 
@@ -20,26 +22,36 @@ export class DpoController {
     return this.dpoService.getHealth();
   }
 
+  @Post('auth/login')
+  login(@Body() body: { email?: string; password?: string }) {
+    return this.dpoService.login(body.email ?? '', body.password ?? '');
+  }
+
+  @UseGuards(AdminAuthGuard)
   @Get('admin/schemas')
   schemas() {
     return this.dpoService.getSchemas();
   }
 
+  @UseGuards(AdminAuthGuard)
   @Get('admin/dashboard')
   dashboard() {
     return this.dpoService.getDashboard();
   }
 
+  @UseGuards(AdminAuthGuard)
   @Get('admin/database/status')
   databaseStatus() {
     return this.dpoService.getDatabaseStatus();
   }
 
+  @UseGuards(AdminAuthGuard)
   @Get('admin/:resource')
   list(@Param('resource') resource: string, @Query() query: ListQuery) {
     return this.dpoService.list(resource as ResourceName, query);
   }
 
+  @UseGuards(AdminAuthGuard)
   @Post('admin/:resource')
   create(
     @Param('resource') resource: string,
@@ -48,11 +60,13 @@ export class DpoController {
     return this.dpoService.create(resource as ResourceName, body);
   }
 
+  @UseGuards(AdminAuthGuard)
   @Get('admin/:resource/:id')
   get(@Param('resource') resource: string, @Param('id') id: string) {
     return this.dpoService.get(resource as ResourceName, id);
   }
 
+  @UseGuards(AdminAuthGuard)
   @Patch('admin/:resource/:id')
   update(
     @Param('resource') resource: string,
@@ -62,11 +76,13 @@ export class DpoController {
     return this.dpoService.update(resource as ResourceName, id, body);
   }
 
+  @UseGuards(AdminAuthGuard)
   @Delete('admin/:resource/:id')
   delete(@Param('resource') resource: string, @Param('id') id: string) {
     return this.dpoService.delete(resource as ResourceName, id);
   }
 
+  @UseGuards(AdminAuthGuard)
   @Post('admin/:resource/:id/actions/:action')
   action(
     @Param('resource') resource: string,
