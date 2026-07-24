@@ -103,6 +103,11 @@ export class DpoController {
     return this.dpoService.verifyMember(membershipNumber);
   }
 
+  @Get('public/verify/member')
+  verifyMemberQuery(@Query('identifier') identifier = '') {
+    return this.dpoService.verifyMember(identifier);
+  }
+
   @Get('public/verify/wireless/:imei')
   verifyWirelessDevice(@Param('imei') imei: string) {
     return this.dpoService.verifyWirelessDevice(imei);
@@ -114,6 +119,8 @@ export class DpoController {
       complaintNumber: `CMP-${Date.now()}`,
       status: 'pending',
       priority: body.priority ?? 'medium',
+      submittedDate: new Date().toISOString().slice(0, 10),
+      publicResponse: null,
       ...body,
     });
   }
@@ -126,6 +133,56 @@ export class DpoController {
   @Get('public/cms')
   publicCms() {
     return this.dpoService.getPublicCms();
+  }
+
+  @Get('public/site')
+  publicSite() {
+    return this.dpoService.getPublicSite();
+  }
+
+  @Get('public/leadership')
+  publicLeadership() {
+    return this.dpoService.getPublicLeadership();
+  }
+
+  @Get('public/leadership/:id')
+  publicLeadershipProfile(@Param('id') id: string) {
+    return this.dpoService.getPublicLeadershipProfile(id);
+  }
+
+  @Get('public/news')
+  publicNews() {
+    return this.dpoService.getPublicNews();
+  }
+
+  @Get('public/legal/:slug')
+  publicLegalPage(@Param('slug') slug: string) {
+    return this.dpoService.getPublicLegalPage(slug);
+  }
+
+  @Post('public/membership/applications')
+  submitMembershipApplication(@Body() body: Record<string, unknown>) {
+    return this.dpoService.submitMembershipApplication(body);
+  }
+
+  @Get('public/membership/renewal/:identifier')
+  membershipRenewalLookup(@Param('identifier') identifier: string) {
+    return this.dpoService.lookupMembershipRenewal(identifier);
+  }
+
+  @Post('public/membership/renewals')
+  submitMembershipRenewal(@Body() body: Record<string, unknown>) {
+    return this.dpoService.submitMembershipRenewal(body);
+  }
+
+  @Post('public/membership/card-regeneration')
+  submitCardRegeneration(@Body() body: Record<string, unknown>) {
+    return this.dpoService.submitCardRegeneration(body);
+  }
+
+  @Post('public/contact')
+  submitContact(@Body() body: Record<string, unknown>) {
+    return this.dpoService.submitContact(body);
   }
 
   @Get('public/gallery')

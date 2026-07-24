@@ -332,15 +332,39 @@ export class DpoService {
   }
 
   async verifyMember(membershipNumber: string) {
-    const member = (await this.collection('members')).find(
-      (item) => item.membershipNumber === membershipNumber,
-    );
+    const identifier = this.toText(membershipNumber).trim().toLowerCase();
+    const members = await this.collection('members');
+    const designations = await this.collection('active-designations');
+    const member = members.find((item) => {
+      const membershipMatch =
+        this.toText(item.membershipNumber).toLowerCase() === identifier;
+      const maskedCnicMatch =
+        this.toText(item.cnicMasked).toLowerCase() === identifier;
+      return membershipMatch || maskedCnicMatch;
+    });
+    const designation = member
+      ? designations.find(
+          (item) =>
+            item.status === 'active' &&
+            this.toText(item.membershipNumber) ===
+              this.toText(member.membershipNumber),
+        )
+      : null;
     return {
       verified: Boolean(member && member.status === 'active'),
       member: member
         ? {
             membershipNumber: member.membershipNumber,
             name: member.name,
+            photo: member.photo ?? member.profilePhoto ?? null,
+            membershipType: member.membershipType,
+            designation: designation?.designation ?? member.designation ?? null,
+            region:
+              designation?.district ??
+              member.district ??
+              designation?.province ??
+              member.country ??
+              null,
             status: member.status,
             issueDate: member.issueDate,
             expiryDate: member.expiryDate,
@@ -380,6 +404,7 @@ export class DpoService {
       complaintNumber: complaint.complaintNumber,
       status: complaint.status,
       priority: complaint.priority,
+      category: complaint.category,
       subject: complaint.subject,
       publicResponse: complaint.publicResponse,
       submittedDate: complaint.submittedDate,
@@ -391,6 +416,209 @@ export class DpoService {
     return (await this.collection('cms-pages')).filter(
       (page) => page.status === 'published',
     );
+  }
+
+  async getPublicSite() {
+    const [
+      cmsPages,
+      galleryAlbums,
+      welfareCampaigns,
+      members,
+      activeDesignations,
+      settings,
+    ] = await Promise.all([
+      this.collection('cms-pages'),
+      this.collection('gallery-albums'),
+      this.collection('welfare-campaigns'),
+      this.collection('members'),
+      this.collection('active-designations'),
+      this.collection('settings'),
+    ]);
+
+    const publishedCms = cmsPages.filter((page) => page.status === 'published');
+    const publishedGallery = galleryAlbums.filter(
+      (album) => album.status === 'published',
+    );
+    const publishedWelfare = welfareCampaigns.filter(
+      (campaign) => campaign.status === 'published',
+    );
+    const activeMembers = members.filter(
+      (member) => member.status === 'active',
+    );
+    const activeLeaders = activeDesignations.filter(
+      (designation) => designation.status === 'active',
+    );
+
+    return {
+      cms: publishedCms,
+      settings: settings
+        .filter((setting) => setting.status === 'active')
+        .filter((setting) =>
+          ['organization', 'branding', 'membership', 'fees'].includes(
+            this.toText(setting.group),
+          ),
+        ),
+      gallery: publishedGallery,
+      welfare: publishedWelfare,
+      leadership: activeLeaders.map((leader) => this.publicLeader(leader)),
+      news: this.publicNewsFromCms(publishedCms),
+      stats: {
+        activeMembers: activeMembers.length,
+        projectsCompleted: publishedWelfare.filter(
+          (campaign) =>
+            this.toText(campaign.status) === 'published' &&
+            campaign.endDate &&
+            new Date(this.toText(campaign.endDate)).getTime() < Date.now(),
+        ).length,
+        volunteers: activeMembers.filter((member) =>
+          this.toText(member.membershipType)
+            .toLowerCase()
+            .includes('volunteer'),
+        ).length,
+        regions: new Set(
+          activeMembers
+            .map((member) => this.toText(member.district || member.country))
+            .filter(Boolean),
+        ).size,
+      },
+    };
+  }
+
+  async getPublicLeadership() {
+    return (await this.collection('active-designations'))
+      .filter((leader) => leader.status === 'active')
+      .map((leader) => this.publicLeader(leader));
+  }
+
+  async getPublicLeadershipProfile(id: string) {
+    const leader = (await this.collection('active-designations')).find(
+      (item) => item.id === id && item.status === 'active',
+    );
+    if (!leader) {
+      throw new NotFoundException('Leadership profile not found');
+    }
+    return this.publicLeader(leader);
+  }
+
+  async getPublicNews() {
+    return this.publicNewsFromCms(await this.getPublicCms());
+  }
+
+  async getPublicLegalPage(slug: string) {
+    const page = (await this.collection('cms-pages')).find(
+      (item) =>
+        item.status === 'published' &&
+        this.toText(item.slug).toLowerCase() === slug.toLowerCase() &&
+        ['privacy-policy', 'terms-and-conditions', 'refund-policy'].includes(
+          this.toText(item.slug),
+        ),
+    );
+    if (!page) {
+      throw new NotFoundException('Legal page not found');
+    }
+    return page;
+  }
+
+  async submitMembershipApplication(payload: Record<string, unknown>) {
+    const name = this.toText(payload.name).trim();
+    const phone = this.toText(payload.phone).trim();
+    const membershipType = this.toText(payload.membershipType).trim();
+    if (!name || !phone || !membershipType) {
+      throw new BadRequestException(
+        'Name, phone and membership type are required',
+      );
+    }
+
+    return this.create('membership-applications', {
+      applicationNumber: `APP-${new Date().getFullYear()}-${Date.now()}`,
+      name,
+      cnicMasked: this.maskCnic(payload.cnic ?? payload.cnicMasked),
+      phone,
+      email: this.toText(payload.email).trim() || null,
+      country: this.toText(payload.country).trim() || 'Pakistan',
+      province: this.toText(payload.province).trim() || null,
+      district: this.toText(payload.district).trim() || null,
+      address: this.toText(payload.address).trim() || null,
+      membershipType,
+      paymentStatus: 'pending',
+      documents: Array.isArray(payload.documents) ? payload.documents : [],
+      status: 'pending',
+      termsAccepted: Boolean(payload.termsAccepted),
+    });
+  }
+
+  async lookupMembershipRenewal(identifier: string) {
+    const member = await this.findMember(identifier);
+    if (!member) {
+      throw new NotFoundException('Member not found');
+    }
+    const fee = await this.settingValue('membership_fee_pk');
+    return {
+      member: this.publicMember(member),
+      currentExpiry: member.expiryDate ?? null,
+      eligible: ['active', 'expired'].includes(this.toText(member.status)),
+      fee: fee ?? null,
+    };
+  }
+
+  async submitMembershipRenewal(payload: Record<string, unknown>) {
+    const member = await this.findMember(
+      this.toText(payload.membershipNumber || payload.identifier),
+    );
+    if (!member) {
+      throw new NotFoundException('Member not found');
+    }
+    return this.create('membership-renewals', {
+      renewalNumber: `REN-${new Date().getFullYear()}-${Date.now()}`,
+      membershipNumber: member.membershipNumber,
+      name: member.name,
+      district: member.district,
+      paymentStatus: 'pending',
+      status: 'pending',
+      requestedExpiryDate: payload.requestedExpiryDate ?? null,
+      documents: Array.isArray(payload.documents) ? payload.documents : [],
+    });
+  }
+
+  async submitCardRegeneration(payload: Record<string, unknown>) {
+    const member = await this.findMember(
+      this.toText(payload.membershipNumber || payload.identifier),
+    );
+    if (!member) {
+      throw new NotFoundException('Member not found');
+    }
+    return this.create('membership-renewals', {
+      renewalNumber: `CARD-REG-${new Date().getFullYear()}-${Date.now()}`,
+      membershipNumber: member.membershipNumber,
+      name: member.name,
+      district: member.district,
+      requestType: 'card_regeneration',
+      reason: payload.reason ?? null,
+      paymentStatus: 'pending',
+      status: 'pending',
+      documents: Array.isArray(payload.documents) ? payload.documents : [],
+    });
+  }
+
+  async submitContact(payload: Record<string, unknown>) {
+    const subject = this.toText(payload.subject).trim();
+    const name = this.toText(payload.name).trim();
+    if (!subject || !name) {
+      throw new BadRequestException('Name and subject are required');
+    }
+    return this.create('complaints', {
+      complaintNumber: `CNT-${Date.now()}`,
+      name,
+      email: this.toText(payload.email).trim() || null,
+      phone: this.toText(payload.phone).trim() || null,
+      category: 'Contact',
+      priority: 'medium',
+      subject,
+      description: this.toText(payload.message || payload.description).trim(),
+      status: 'pending',
+      submittedDate: new Date().toISOString().slice(0, 10),
+      publicResponse: null,
+    });
   }
 
   async getPublicGallery() {
@@ -417,6 +645,81 @@ export class DpoService {
   private async collection(resource: ResourceName): Promise<DpoRecord[]> {
     this.schema(resource);
     return this.database.collection(resource);
+  }
+
+  private async findMember(identifier: string) {
+    const value = this.toText(identifier).trim().toLowerCase();
+    return (await this.collection('members')).find(
+      (member) =>
+        this.toText(member.membershipNumber).toLowerCase() === value ||
+        this.toText(member.cnicMasked).toLowerCase() === value,
+    );
+  }
+
+  private publicMember(member: DpoRecord) {
+    return {
+      membershipNumber: member.membershipNumber,
+      name: member.name,
+      photo: member.photo ?? member.profilePhoto ?? null,
+      membershipType: member.membershipType,
+      district: member.district,
+      country: member.country,
+      issueDate: member.issueDate,
+      expiryDate: member.expiryDate,
+      status: member.status,
+    };
+  }
+
+  private publicLeader(leader: DpoRecord) {
+    return {
+      id: leader.id,
+      name: leader.holder ?? leader.name,
+      photo: leader.photo ?? leader.profilePhoto ?? null,
+      designation: leader.designation,
+      region: leader.area ?? leader.district ?? leader.province,
+      district: leader.district,
+      province: leader.province,
+      wing: leader.wing,
+      biography: leader.biography ?? null,
+      responsibilities: leader.responsibilities ?? null,
+      issueDate: leader.issueDate,
+      expiryDate: leader.expiryDate,
+      status: leader.status,
+    };
+  }
+
+  private publicNewsFromCms(pages: DpoRecord[]) {
+    return pages
+      .filter((page) =>
+        ['news', 'article', 'notice'].includes(this.toText(page.type)),
+      )
+      .map((page) => ({
+        id: page.id,
+        slug: page.slug,
+        titleEnglish: page.titleEnglish,
+        titleUrdu: page.titleUrdu,
+        category: page.category ?? page.type,
+        image: page.image ?? null,
+        excerpt: page.excerpt ?? null,
+        content: page.content ?? null,
+        publishedAt: page.publishedAt ?? page.createdAt,
+        createdAt: page.createdAt,
+      }));
+  }
+
+  private async settingValue(key: string) {
+    const setting = (await this.collection('settings')).find(
+      (item) => item.status === 'active' && item.key === key,
+    );
+    return setting?.value;
+  }
+
+  private maskCnic(value: unknown) {
+    const text = this.toText(value).replace(/\D/g, '');
+    if (text.length < 6) {
+      return '';
+    }
+    return `${text.slice(0, 5)}-*****-${text.slice(-1)}`;
   }
 
   private includes(value: unknown, query?: string): boolean {
