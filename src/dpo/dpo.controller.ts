@@ -165,6 +165,21 @@ export class DpoController {
     return this.dpoService.submitMembershipApplication(body);
   }
 
+  @Get('public/designations')
+  publicDesignations() {
+    return this.dpoService.getPublicDesignations();
+  }
+
+  @Post('public/designation/applications')
+  submitDesignationApplication(@Body() body: Record<string, unknown>) {
+    return this.dpoService.submitDesignationApplication(body);
+  }
+
+  @Post('public/applications/status')
+  publicApplicationStatus(@Body() body: Record<string, unknown>) {
+    return this.dpoService.getPublicApplicationStatus(body);
+  }
+
   @Get('public/membership/renewal/:identifier')
   membershipRenewalLookup(@Param('identifier') identifier: string) {
     return this.dpoService.lookupMembershipRenewal(identifier);

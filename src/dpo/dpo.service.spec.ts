@@ -42,4 +42,52 @@ describe('DpoService', () => {
       service.runAction('designation-applications', application.id, 'approve'),
     ).rejects.toThrow(BadRequestException);
   });
+
+  it('requires each identity document type for public applications', async () => {
+    const image =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    const documents = ['front-one.png', 'front-two.png', 'front-three.png'].map(
+      (name) => ({
+        kind: 'cnic-front',
+        label: 'CNIC Front',
+        name,
+        dataUrl: image,
+      }),
+    );
+
+    await expect(
+      service.submitMembershipApplication({
+        name: 'Test Applicant',
+        phone: '03001234567',
+        membershipType: 'General',
+        termsAccepted: true,
+        documents,
+      }),
+    ).rejects.toThrow('CNIC front, CNIC back and profile photo are required');
+  });
+
+  it('blocks designation approval until structured documents are verified', async () => {
+    const application = await service.create('designation-applications', {
+      applicant: 'Document Review Applicant',
+      designation: 'President',
+      wing: 'General',
+      province: 'Sindh',
+      district: 'Hyderabad',
+      area: 'Latifabad',
+      paymentStatus: 'paid',
+      documents: [
+        {
+          kind: 'cnic-front',
+          url: '/uploads/test/front.png',
+          status: 'pending',
+        },
+      ],
+      documentsVerified: false,
+      status: 'pending',
+    });
+
+    await expect(
+      service.runAction('designation-applications', application.id, 'approve'),
+    ).rejects.toThrow('Verify all uploaded documents before approval');
+  });
 });

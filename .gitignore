@@ -52,6 +52,7 @@ pids
 *.seed
 *.pid.lock
 /data
+/storage/public-uploads
 /prisma/dev.db
 /prisma/dev.db-journal
 

@@ -4,6 +4,8 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { PrismaDatabaseService } from '../database/prisma-database.service';
 import { AuthService } from './auth.service';
 import {
@@ -281,7 +283,31 @@ export class DpoService {
   ): Promise<Record<string, unknown>> {
     const record = await this.get(resource, id);
 
+    if (
+      action === 'approve' &&
+      ['membership-applications', 'designation-applications'].includes(resource)
+    ) {
+      const hasStructuredDocuments =
+        Array.isArray(record.documents) &&
+        record.documents.some(
+          (document) =>
+            Boolean(document) &&
+            typeof document === 'object' &&
+            !Array.isArray(document),
+        );
+      if (hasStructuredDocuments && record.documentsVerified !== true) {
+        throw new BadRequestException(
+          'Verify all uploaded documents before approval',
+        );
+      }
+    }
+
     if (resource === 'designation-applications' && action === 'approve') {
+      if (this.toText(record.paymentStatus).toLowerCase() !== 'paid') {
+        throw new BadRequestException(
+          'Verify the designation fee before approval',
+        );
+      }
       await this.assertNoDuplicateDesignation(record);
       const activeDesignation = await this.create('active-designations', {
         holder: record.applicant,
@@ -529,9 +555,23 @@ export class DpoService {
       );
     }
 
+    if (!payload.termsAccepted) {
+      throw new BadRequestException('Membership terms must be accepted');
+    }
+
+    const applicationNumber = `APP-${new Date().getFullYear()}-${Date.now()}`;
+    const documents = await this.storePublicDocuments(
+      payload.documents,
+      applicationNumber,
+      ['cnic-front', 'cnic-back', 'profile-photo'],
+    );
+
     return this.create('membership-applications', {
-      applicationNumber: `APP-${new Date().getFullYear()}-${Date.now()}`,
+      applicationNumber,
       name,
+      fatherName: this.toText(payload.fatherName).trim() || null,
+      dateOfBirth: this.toText(payload.dateOfBirth).trim() || null,
+      gender: this.toText(payload.gender).trim() || null,
       cnicMasked: this.maskCnic(payload.cnic ?? payload.cnicMasked),
       phone,
       email: this.toText(payload.email).trim() || null,
@@ -541,10 +581,157 @@ export class DpoService {
       address: this.toText(payload.address).trim() || null,
       membershipType,
       paymentStatus: 'pending',
-      documents: Array.isArray(payload.documents) ? payload.documents : [],
+      documents,
+      documentStatus: documents.length >= 3 ? 'pending' : 'incomplete',
+      documentsVerified: false,
       status: 'pending',
       termsAccepted: Boolean(payload.termsAccepted),
     });
+  }
+
+  async getPublicDesignations() {
+    return (await this.collection('designation-master-list'))
+      .filter((item) => item.status === 'active')
+      .map((item) => ({
+        id: item.id,
+        designation: item.designation,
+        wing: item.wing ?? null,
+        fee: item.fee ?? null,
+        validityMonths: item.validityMonths ?? null,
+      }))
+      .sort((a, b) =>
+        this.toText(a.designation).localeCompare(this.toText(b.designation)),
+      );
+  }
+
+  async submitDesignationApplication(payload: Record<string, unknown>) {
+    const applicant = this.toText(payload.applicant ?? payload.name).trim();
+    const phone = this.toText(payload.phone).trim();
+    const designation = this.toText(payload.designation).trim();
+    const province = this.toText(payload.province).trim();
+    const district = this.toText(payload.district).trim();
+    const area = this.toText(payload.area).trim();
+
+    if (
+      !applicant ||
+      !phone ||
+      !designation ||
+      !province ||
+      !district ||
+      !area
+    ) {
+      throw new BadRequestException(
+        'Name, phone, designation, province, district and area are required',
+      );
+    }
+    if (!payload.termsAccepted) {
+      throw new BadRequestException('Designation terms must be accepted');
+    }
+
+    const allowedDesignation = (
+      await this.collection('designation-master-list')
+    ).some(
+      (item) =>
+        item.status === 'active' &&
+        this.toText(item.designation).toLowerCase() ===
+          designation.toLowerCase(),
+    );
+    if (!allowedDesignation) {
+      throw new BadRequestException('Selected designation is not available');
+    }
+
+    const applicationNumber = `DSG-APP-${new Date().getFullYear()}-${Date.now()}`;
+    const documents = await this.storePublicDocuments(
+      payload.documents,
+      applicationNumber,
+      ['cnic-front', 'cnic-back', 'profile-photo'],
+    );
+
+    return this.create('designation-applications', {
+      applicationNumber,
+      applicant,
+      fatherName: this.toText(payload.fatherName).trim() || null,
+      cnicMasked: this.maskCnic(payload.cnic ?? payload.cnicMasked),
+      phone,
+      email: this.toText(payload.email).trim() || null,
+      membershipNumber: this.toText(payload.membershipNumber).trim() || null,
+      designation,
+      wing: this.toText(payload.wing).trim() || 'General',
+      country: this.toText(payload.country).trim() || 'Pakistan',
+      province,
+      district,
+      area,
+      address: this.toText(payload.address).trim() || null,
+      reason: this.toText(payload.reason).trim() || null,
+      experience: this.toText(payload.experience).trim() || null,
+      validityMonths: Number(payload.validityMonths) || 12,
+      paymentStatus: 'pending',
+      documents,
+      documentStatus: documents.length >= 3 ? 'pending' : 'incomplete',
+      documentsVerified: false,
+      status: 'pending',
+      termsAccepted: Boolean(payload.termsAccepted),
+    });
+  }
+
+  async getPublicApplicationStatus(payload: Record<string, unknown>) {
+    const applicationNumber = this.toText(payload.applicationNumber)
+      .trim()
+      .toLowerCase();
+    const phone = this.normalizePhone(payload.phone);
+    if (!applicationNumber || !phone) {
+      throw new BadRequestException(
+        'Application number and phone are required',
+      );
+    }
+
+    const resources: ResourceName[] = [
+      'membership-applications',
+      'designation-applications',
+    ];
+    for (const resource of resources) {
+      const record = (await this.collection(resource)).find(
+        (item) =>
+          this.toText(item.applicationNumber).toLowerCase() ===
+            applicationNumber && this.normalizePhone(item.phone) === phone,
+      );
+      if (record) {
+        const documents = Array.isArray(record.documents)
+          ? record.documents
+          : [];
+        return {
+          applicationNumber: record.applicationNumber,
+          applicationType:
+            resource === 'membership-applications'
+              ? 'membership'
+              : 'designation',
+          applicant: record.name ?? record.applicant,
+          status: record.status,
+          paymentStatus: record.paymentStatus,
+          documentStatus: record.documentStatus ?? 'pending',
+          documents: documents.map((document, index) => {
+            if (typeof document === 'string') {
+              return {
+                kind: `document-${index + 1}`,
+                label: `Document ${index + 1}`,
+                name: document,
+                status: record.documentStatus ?? 'pending',
+              };
+            }
+            const item = this.toObject(document);
+            return {
+              kind: item.kind ?? `document-${index + 1}`,
+              label: item.label ?? `Document ${index + 1}`,
+              name: item.name ?? 'Uploaded document',
+              status: item.status ?? 'pending',
+            };
+          }),
+          submittedAt: record.createdAt,
+          updatedAt: record.updatedAt,
+        };
+      }
+    }
+    throw new NotFoundException('Application not found');
   }
 
   async lookupMembershipRenewal(identifier: string) {
@@ -568,15 +755,21 @@ export class DpoService {
     if (!member) {
       throw new NotFoundException('Member not found');
     }
+    const renewalNumber = `REN-${new Date().getFullYear()}-${Date.now()}`;
+    const documents = await this.storePublicDocuments(
+      payload.documents,
+      renewalNumber,
+    );
     return this.create('membership-renewals', {
-      renewalNumber: `REN-${new Date().getFullYear()}-${Date.now()}`,
+      renewalNumber,
       membershipNumber: member.membershipNumber,
       name: member.name,
       district: member.district,
       paymentStatus: 'pending',
       status: 'pending',
       requestedExpiryDate: payload.requestedExpiryDate ?? null,
-      documents: Array.isArray(payload.documents) ? payload.documents : [],
+      documents,
+      documentStatus: documents.length ? 'pending' : 'not_required',
     });
   }
 
@@ -587,8 +780,13 @@ export class DpoService {
     if (!member) {
       throw new NotFoundException('Member not found');
     }
+    const renewalNumber = `CARD-REG-${new Date().getFullYear()}-${Date.now()}`;
+    const documents = await this.storePublicDocuments(
+      payload.documents,
+      renewalNumber,
+    );
     return this.create('membership-renewals', {
-      renewalNumber: `CARD-REG-${new Date().getFullYear()}-${Date.now()}`,
+      renewalNumber,
       membershipNumber: member.membershipNumber,
       name: member.name,
       district: member.district,
@@ -596,7 +794,8 @@ export class DpoService {
       reason: payload.reason ?? null,
       paymentStatus: 'pending',
       status: 'pending',
-      documents: Array.isArray(payload.documents) ? payload.documents : [],
+      documents,
+      documentStatus: documents.length ? 'pending' : 'not_required',
     });
   }
 
@@ -712,6 +911,101 @@ export class DpoService {
       (item) => item.status === 'active' && item.key === key,
     );
     return setting?.value;
+  }
+
+  private async storePublicDocuments(
+    value: unknown,
+    applicationNumber: string,
+    requiredKinds: string[] = [],
+  ) {
+    const source = Array.isArray(value) ? value.slice(0, 5) : [];
+    const allowedKinds = new Set([
+      'cnic-front',
+      'cnic-back',
+      'profile-photo',
+      'supporting-document',
+    ]);
+    const suppliedKinds = source.map((document) =>
+      this.toText(this.toObject(document).kind).trim().toLowerCase(),
+    );
+    if (requiredKinds.some((kind) => !suppliedKinds.includes(kind))) {
+      throw new BadRequestException(
+        'CNIC front, CNIC back and profile photo are required',
+      );
+    }
+    const mimeExtensions: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'application/pdf': 'pdf',
+    };
+    const folder = applicationNumber
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '')
+      .slice(0, 80);
+    const targetDirectory = resolve(
+      process.cwd(),
+      'storage',
+      'public-uploads',
+      folder,
+    );
+    await mkdir(targetDirectory, { recursive: true });
+
+    const stored: Record<string, unknown>[] = [];
+    for (const [index, documentValue] of source.entries()) {
+      const document = this.toObject(documentValue);
+      const kind = this.toText(document.kind).trim().toLowerCase();
+      const dataUrl = this.toText(document.dataUrl).trim();
+      const match = dataUrl.match(
+        /^data:(image\/(?:jpeg|png|webp)|application\/pdf);base64,([a-z0-9+/=\s]+)$/i,
+      );
+      if (!allowedKinds.has(kind) || !match) {
+        throw new BadRequestException(
+          'Documents must be JPG, PNG, WebP or PDF files',
+        );
+      }
+
+      const mimeType = match[1].toLowerCase();
+      const fileBuffer = Buffer.from(match[2].replace(/\s/g, ''), 'base64');
+      if (!fileBuffer.length || fileBuffer.length > 5 * 1024 * 1024) {
+        throw new BadRequestException(
+          'Each document must be smaller than 5 MB',
+        );
+      }
+
+      const extension = mimeExtensions[mimeType];
+      const filename = `${kind}-${Date.now()}-${index}.${extension}`;
+      await writeFile(resolve(targetDirectory, filename), fileBuffer, {
+        flag: 'wx',
+      });
+      stored.push({
+        kind,
+        label: this.toText(document.label).trim() || this.titleCase(kind),
+        name: this.toText(document.name).trim().slice(0, 160) || filename,
+        url: `/uploads/${folder}/${filename}`,
+        mimeType,
+        size: fileBuffer.length,
+        status: 'pending',
+      });
+    }
+    return stored;
+  }
+
+  private normalizePhone(value: unknown) {
+    return this.toText(value).replace(/\D/g, '').slice(-10);
+  }
+
+  private toObject(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  }
+
+  private titleCase(value: string) {
+    return value
+      .split('-')
+      .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+      .join(' ');
   }
 
   private maskCnic(value: unknown) {
