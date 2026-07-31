@@ -115,7 +115,7 @@ export class DpoService {
       (payment) => payment.status === 'paid',
     );
     const totalRevenue = paidPayments.reduce(
-      (sum, payment) => sum + Number(payment.totalAmount ?? 0),
+      (sum, payment) => sum + Number(payment.amount ?? payment.totalAmount ?? 0),
       0,
     );
     const totalDonations = donations.reduce(
@@ -140,8 +140,9 @@ export class DpoService {
         openComplaints: complaints.filter(
           (item) => !['resolved', 'closed'].includes(String(item.status)),
         ).length,
-        urgentComplaints: complaints.filter((item) => item.priority === 'high')
-          .length,
+        urgentComplaints: complaints.filter(
+          (item) => item.status === 'pending',
+        ).length,
         todayPayments: paidPayments.length,
         monthlyRevenue: totalRevenue,
         totalDonations,
@@ -325,6 +326,15 @@ export class DpoService {
       return { record: await this.get(resource, id), activeDesignation };
     }
 
+    if (resource === 'payments' && action === 'markPaid') {
+      await this.update(resource, id, {
+        status: 'paid',
+        paidDate: new Date().toISOString().slice(0, 10),
+      });
+      await this.markLinkedApplicationPaid(record);
+      return { record: await this.get(resource, id), action };
+    }
+
     const actionStatusMap: Record<string, DpoStatus> = {
       approve: 'approved',
       reject: 'rejected',
@@ -359,13 +369,15 @@ export class DpoService {
 
   async verifyMember(membershipNumber: string) {
     const identifier = this.toText(membershipNumber).trim().toLowerCase();
+    const maskedCnic = this.maskCnic(membershipNumber).toLowerCase();
     const members = await this.collection('members');
     const designations = await this.collection('active-designations');
     const member = members.find((item) => {
       const membershipMatch =
         this.toText(item.membershipNumber).toLowerCase() === identifier;
       const maskedCnicMatch =
-        this.toText(item.cnicMasked).toLowerCase() === identifier;
+        this.toText(item.cnicMasked).toLowerCase() === identifier ||
+        this.toText(item.cnicMasked).toLowerCase() === maskedCnic;
       return membershipMatch || maskedCnicMatch;
     });
     const designation = member
@@ -429,9 +441,11 @@ export class DpoService {
     return {
       complaintNumber: complaint.complaintNumber,
       status: complaint.status,
-      priority: complaint.priority,
+      name: complaint.name,
+      phone: complaint.phone,
       category: complaint.category,
       subject: complaint.subject,
+      description: complaint.description,
       publicResponse: complaint.publicResponse,
       submittedDate: complaint.submittedDate,
       updatedAt: complaint.updatedAt,
@@ -566,7 +580,7 @@ export class DpoService {
       ['cnic-front', 'cnic-back', 'profile-photo'],
     );
 
-    return this.create('membership-applications', {
+    const application = await this.create('membership-applications', {
       applicationNumber,
       name,
       fatherName: this.toText(payload.fatherName).trim() || null,
@@ -587,6 +601,13 @@ export class DpoService {
       status: 'pending',
       termsAccepted: Boolean(payload.termsAccepted),
     });
+    await this.createManualPayment({
+      applicationNumber,
+      user: name,
+      paymentType: 'Membership Fee',
+      amount: Number(await this.settingValue('membership_fee_pk')) || null,
+    });
+    return application;
   }
 
   async getPublicDesignations() {
@@ -595,8 +616,7 @@ export class DpoService {
       .map((item) => ({
         id: item.id,
         designation: item.designation,
-        wing: item.wing ?? null,
-        fee: item.fee ?? null,
+        amount: item.amount ?? null,
         validityMonths: item.validityMonths ?? null,
       }))
       .sort((a, b) =>
@@ -630,7 +650,7 @@ export class DpoService {
 
     const allowedDesignation = (
       await this.collection('designation-master-list')
-    ).some(
+    ).find(
       (item) =>
         item.status === 'active' &&
         this.toText(item.designation).toLowerCase() ===
@@ -647,14 +667,14 @@ export class DpoService {
       ['cnic-front', 'cnic-back', 'profile-photo'],
     );
 
-    return this.create('designation-applications', {
+    const application = await this.create('designation-applications', {
       applicationNumber,
       applicant,
       fatherName: this.toText(payload.fatherName).trim() || null,
       cnicMasked: this.maskCnic(payload.cnic ?? payload.cnicMasked),
       phone,
       email: this.toText(payload.email).trim() || null,
-      membershipNumber: this.toText(payload.membershipNumber).trim() || null,
+      memberCnicMasked: this.maskCnic(payload.memberCnic),
       designation,
       wing: this.toText(payload.wing).trim() || 'General',
       country: this.toText(payload.country).trim() || 'Pakistan',
@@ -664,7 +684,13 @@ export class DpoService {
       address: this.toText(payload.address).trim() || null,
       reason: this.toText(payload.reason).trim() || null,
       experience: this.toText(payload.experience).trim() || null,
-      validityMonths: Number(payload.validityMonths) || 12,
+      validityMonths:
+        Number(allowedDesignation.validityMonths) ||
+        Number(payload.validityMonths) ||
+        12,
+      fee:
+        Number(allowedDesignation.amount) ||
+        null,
       paymentStatus: 'pending',
       documents,
       documentStatus: documents.length >= 3 ? 'pending' : 'incomplete',
@@ -672,17 +698,19 @@ export class DpoService {
       status: 'pending',
       termsAccepted: Boolean(payload.termsAccepted),
     });
+    await this.createManualPayment({
+      applicationNumber,
+      user: applicant,
+      paymentType: 'Designation Fee',
+      amount: Number(allowedDesignation.amount) || null,
+    });
+    return application;
   }
 
   async getPublicApplicationStatus(payload: Record<string, unknown>) {
-    const applicationNumber = this.toText(payload.applicationNumber)
-      .trim()
-      .toLowerCase();
-    const phone = this.normalizePhone(payload.phone);
-    if (!applicationNumber || !phone) {
-      throw new BadRequestException(
-        'Application number and phone are required',
-      );
+    const cnicMasked = this.maskCnic(payload.cnic ?? payload.cnicMasked);
+    if (!cnicMasked) {
+      throw new BadRequestException('CNIC is required');
     }
 
     const resources: ResourceName[] = [
@@ -692,8 +720,8 @@ export class DpoService {
     for (const resource of resources) {
       const record = (await this.collection(resource)).find(
         (item) =>
-          this.toText(item.applicationNumber).toLowerCase() ===
-            applicationNumber && this.normalizePhone(item.phone) === phone,
+          this.toText(item.cnicMasked).toLowerCase() ===
+            cnicMasked.toLowerCase(),
       );
       if (record) {
         const documents = Array.isArray(record.documents)
@@ -732,6 +760,20 @@ export class DpoService {
       }
     }
     throw new NotFoundException('Application not found');
+  }
+
+  async getPublicPaymentInstructions() {
+    return {
+      title: 'Manual payment',
+      accountTitle: (await this.settingValue('payment_account_title')) ?? null,
+      bankName: (await this.settingValue('payment_bank_name')) ?? null,
+      accountNumber:
+        (await this.settingValue('payment_account_number')) ?? null,
+      iban: (await this.settingValue('payment_iban')) ?? null,
+      note:
+        (await this.settingValue('payment_instructions_note')) ??
+        'Transfer the fee to the listed account and keep your transaction receipt. Admin will verify the payment manually.',
+    };
   }
 
   async lookupMembershipRenewal(identifier: string) {
@@ -811,7 +853,6 @@ export class DpoService {
       email: this.toText(payload.email).trim() || null,
       phone: this.toText(payload.phone).trim() || null,
       category: 'Contact',
-      priority: 'medium',
       subject,
       description: this.toText(payload.message || payload.description).trim(),
       status: 'pending',
@@ -848,10 +889,12 @@ export class DpoService {
 
   private async findMember(identifier: string) {
     const value = this.toText(identifier).trim().toLowerCase();
+    const maskedCnic = this.maskCnic(identifier).toLowerCase();
     return (await this.collection('members')).find(
       (member) =>
         this.toText(member.membershipNumber).toLowerCase() === value ||
-        this.toText(member.cnicMasked).toLowerCase() === value,
+        this.toText(member.cnicMasked).toLowerCase() === value ||
+        this.toText(member.cnicMasked).toLowerCase() === maskedCnic,
     );
   }
 
@@ -911,6 +954,44 @@ export class DpoService {
       (item) => item.status === 'active' && item.key === key,
     );
     return setting?.value;
+  }
+
+  private async createManualPayment(payload: {
+    applicationNumber: string;
+    user: string;
+    paymentType: string;
+    amount: number | null;
+  }) {
+    await this.create('payments', {
+      orderId: `PAY-${Date.now()}`,
+      user: payload.user,
+      paymentType: payload.paymentType,
+      amount: payload.amount,
+      gateway: 'Manual Transfer',
+      gatewayTransactionId: payload.applicationNumber,
+      status: 'pending',
+      paidDate: null,
+    });
+  }
+
+  private async markLinkedApplicationPaid(payment: DpoRecord) {
+    const reference = this.toText(
+      payment.gatewayTransactionId ?? payment.applicationNumber,
+    );
+    if (!reference) return;
+    const resources: ResourceName[] = [
+      'membership-applications',
+      'designation-applications',
+    ];
+    for (const resource of resources) {
+      const application = (await this.collection(resource)).find(
+        (item) => this.toText(item.applicationNumber) === reference,
+      );
+      if (application) {
+        await this.update(resource, application.id, { paymentStatus: 'paid' });
+        return;
+      }
+    }
   }
 
   private async storePublicDocuments(
@@ -1053,6 +1134,7 @@ export class DpoService {
       'under_review',
       'approved',
       'active',
+      'inactive',
       'paid',
       'failed',
       'expired',

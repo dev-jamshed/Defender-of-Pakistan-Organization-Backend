@@ -163,7 +163,7 @@ export class PrismaDatabaseService implements OnModuleInit, OnModuleDestroy {
     for (const [resource, records] of Object.entries(seedData)) {
       for (const record of records) {
         const data = this.toStored(resource as ResourceName, record);
-        if (resource === 'cms-pages') {
+        if (resource === 'cms-pages' || resource === 'settings') {
           const existing = await this.prisma.dpoRecord.findUnique({
             where: { id: record.id },
           });

@@ -117,11 +117,14 @@ export class DpoController {
   submitComplaint(@Body() body: Record<string, unknown>) {
     return this.dpoService.create('complaints', {
       complaintNumber: `CMP-${Date.now()}`,
+      name: body.name ?? '',
+      phone: body.phone ?? '',
+      category: body.category ?? '',
+      subject: body.subject ?? '',
+      description: body.description ?? '',
       status: 'pending',
-      priority: body.priority ?? 'medium',
       submittedDate: new Date().toISOString().slice(0, 10),
       publicResponse: null,
-      ...body,
     });
   }
 
@@ -178,6 +181,11 @@ export class DpoController {
   @Post('public/applications/status')
   publicApplicationStatus(@Body() body: Record<string, unknown>) {
     return this.dpoService.getPublicApplicationStatus(body);
+  }
+
+  @Get('public/payment-instructions')
+  publicPaymentInstructions() {
+    return this.dpoService.getPublicPaymentInstructions();
   }
 
   @Get('public/membership/renewal/:identifier')

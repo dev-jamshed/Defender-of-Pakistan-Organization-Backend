@@ -76,9 +76,9 @@ export const resourceSchemas: ResourceSchema[] = [
   {
     resource: 'designation-master-list',
     title: 'Designation Master List',
-    description: 'Allowed designations, wings, fees and validity duration.',
-    searchableFields: ['designation', 'wing'],
-    filterFields: ['status', 'wing'],
+    description: 'Allowed designations, amount and validity duration.',
+    searchableFields: ['designation'],
+    filterFields: ['status'],
     defaultSort: 'designation',
   },
   {
@@ -108,30 +108,17 @@ export const resourceSchemas: ResourceSchema[] = [
   {
     resource: 'complaints',
     title: 'Complaint Management',
-    description:
-      'Complaint assignment, priority, SLA, public response and internal notes.',
-    searchableFields: ['complaintNumber', 'name', 'cnicMasked', 'subject'],
-    filterFields: [
-      'status',
-      'category',
-      'priority',
-      'assignedOfficer',
-      'region',
-    ],
+    description: 'Public complaints submitted from the frontend.',
+    searchableFields: ['complaintNumber', 'name', 'phone', 'category', 'subject'],
+    filterFields: ['status', 'category'],
     defaultSort: 'createdAt',
   },
   {
     resource: 'payments',
     title: 'Payments & Finance',
-    description:
-      'Transactions, callbacks, offline payments, service fee, receipts and refunds.',
-    searchableFields: [
-      'orderId',
-      'gatewayTransactionId',
-      'user',
-      'paymentType',
-    ],
-    filterFields: ['status', 'gateway', 'paymentType', 'refundStatus'],
+    description: 'Manual transfer records and admin payment verification.',
+    searchableFields: ['orderId', 'gatewayTransactionId', 'user', 'paymentType'],
+    filterFields: ['status', 'gateway', 'paymentType'],
     defaultSort: 'paidDate',
   },
   {
@@ -400,50 +387,74 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
   'designation-master-list': [
     base('dm_1001', {
       designation: 'Chairman',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1002', {
       designation: 'Senior Vice Chairman',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1003', {
       designation: 'Vice Chairman',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1004', {
       designation: 'President',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1005', {
       designation: 'Senior Vice President',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1006', {
       designation: 'Vice President',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1007', {
       designation: 'General Secretary',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1008', {
       designation: 'Joint Secretary',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1009', {
       designation: 'Finance Secretary',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1010', {
       designation: 'Information Secretary',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1011', {
       designation: 'Youth Wing President',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
     base('dm_1012', {
       designation: 'Women Wing President',
+      amount: 0,
+      validityMonths: 12,
       status: 'active',
     }),
   ],
@@ -483,30 +494,22 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
     base('cmp_1001', {
       complaintNumber: 'CMP-2025-0718',
       name: 'Ali Raza',
-      cnicMasked: '61101-*****-1',
+      phone: '0300 1234567',
       category: 'Verification',
-      priority: 'high',
       subject: 'CNIC verification issue',
+      description: 'CNIC verification issue needs review.',
       status: 'pending',
-      assignedOfficer: 'A. Shahid',
-      submittedDate: '2026-07-17',
-      slaDueAt: '2026-07-18T12:00:00.000Z',
       publicResponse: null,
-      internalNotes: [],
     }),
     base('cmp_1002', {
       complaintNumber: 'CMP-2026-0720',
       name: 'Farah Mehmood',
-      cnicMasked: '42101-*****-0',
+      phone: '0312 7654321',
       category: 'Card Issue',
-      priority: 'medium',
       subject: 'Membership card correction request',
+      description: 'Membership card name correction request.',
       status: 'under_review',
-      assignedOfficer: 'Super Admin',
-      submittedDate: '2026-07-20',
-      slaDueAt: '2026-07-22T12:00:00.000Z',
       publicResponse: 'Your card correction request is under review.',
-      internalNotes: ['Check spelling against CNIC.'],
     }),
   ],
   payments: [
@@ -515,26 +518,20 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       gatewayTransactionId: 'TXN-814290',
       user: 'Ali Raza',
       paymentType: 'Membership Fee',
-      baseAmount: 1700,
-      serviceFee: 300,
-      totalAmount: 2000,
-      gateway: 'JazzCash',
+      amount: 2000,
+      gateway: 'Manual Transfer',
       status: 'paid',
       paidDate: '2026-07-17',
-      refundStatus: 'none',
     }),
     base('pay_1002', {
       orderId: 'ORD-260720-1002',
       gatewayTransactionId: 'TXN-920114',
       user: 'Farah Mehmood',
       paymentType: 'Membership Fee',
-      baseAmount: 1700,
-      serviceFee: 300,
-      totalAmount: 2000,
+      amount: 2000,
       gateway: 'Manual',
       status: 'paid',
       paidDate: '2026-07-20',
-      refundStatus: 'none',
     }),
   ],
   'welfare-campaigns': [
@@ -625,11 +622,18 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       type: 'page',
       titleEnglish: 'Defenders of Pakistan Organization',
       titleUrdu: 'DPO Home',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'We are a non-profit organization committed to patriotism, national unity, youth empowerment, community welfare, education and human service for a strong, peaceful and progressive Pakistan.',
       seoTitle: 'DPO',
       status: 'published',
       content: {
+        heroTitle: 'One Flag\nOne Nation\nOne Pakistan',
+        bodyEnglish:
+          'We are a non-profit organization committed to patriotism, national unity, youth empowerment, community welfare, education and human service for a strong, peaceful and progressive Pakistan.',
         logo: '/dpo-assets/logo-transparent.png',
         favicon: '/favicon.ico',
+        image: '/dpo-assets/home-hero-v2.jpg',
         heroSlides: [
           '/dpo-assets/front-1.png',
           '/dpo-assets/front-2.png',
@@ -651,7 +655,280 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
           'Community Welfare',
           'Respect for Law',
         ],
+        items: ['Patriotism', 'Unity', 'Service', 'Empowerment'],
       },
+    }),
+    base('cms_about', {
+      slug: 'about',
+      type: 'page',
+      titleEnglish: 'Built on service. United by Pakistan.',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'A non-profit, non-political and community-driven organization advancing unity, welfare, education and responsible citizenship.',
+      status: 'published',
+      content: {
+        image: '/dpo-assets/home-hero-v2.jpg',
+        bodyEnglish:
+          'A non-profit, non-political and community-driven organization advancing unity, welfare, education and responsible citizenship.',
+        mission:
+          'Unite the people of Pakistan through patriotism, education, social welfare and community engagement while empowering youth to become responsible, ethical and productive citizens.',
+        vision:
+          'To become one of Pakistan trusted and impactful social organizations by creating a united, educated, disciplined and compassionate society.',
+        items: [
+          'Patriotism',
+          'Unity',
+          'Education',
+          'Service',
+          'Integrity',
+          'Leadership',
+          'Community Welfare',
+          'Respect for Law',
+        ],
+      },
+    }),
+    base('cms_home_pillars', {
+      slug: 'home-pillars',
+      type: 'page',
+      titleEnglish: 'Home Pillars',
+      excerpt: 'Homepage pillar cards.',
+      status: 'published',
+      content: {
+        items: [
+          'National strength | Respect for institutions and rule of law.',
+          'Youth leadership | Preparing responsible future citizens.',
+          'Community service | Welfare without discrimination.',
+          'Education | Knowledge, awareness and civic learning.',
+          'National unity | One identity across every community.',
+        ],
+      },
+    }),
+    base('cms_home_impact', {
+      slug: 'home-impact',
+      type: 'page',
+      titleEnglish: 'Progress measured through participation.',
+      excerpt:
+        'Every number represents people choosing awareness, responsibility and public service.',
+      status: 'published',
+      content: {},
+    }),
+    base('cms_home_values', {
+      slug: 'home-values',
+      type: 'page',
+      titleEnglish: 'Values that shape every decision.',
+      excerpt:
+        'Clear principles keep public service accountable, inclusive and focused on long-term national progress.',
+      status: 'published',
+      content: {
+        items: [
+          'Patriotism | Love, respect and commitment to Pakistan.',
+          'Unity | Strengthening harmony among all citizens.',
+          'Education | Knowledge as the foundation of national development.',
+          'Service | Serving humanity without discrimination.',
+          'Integrity | Honesty, transparency and accountability in every action.',
+          'Leadership | Developing future leaders through discipline and responsibility.',
+          'Community Welfare | Working for sustainable social betterment.',
+          'Respect for Law | Supporting constitutional values, justice and citizenship.',
+        ],
+      },
+    }),
+    base('cms_home_membership_journey', {
+      slug: 'home-membership-journey',
+      type: 'page',
+      titleEnglish: 'Your service journey starts here.',
+      excerpt:
+        'A transparent path from choosing your membership type to receiving an official, verifiable identity.',
+      status: 'published',
+      content: {
+        items: [
+          'Choose your path | Select the membership type that matches your role and commitment.',
+          'Verify details | Submit the required identity and contact information securely.',
+          'Receive your card | Approved members receive a clear, official membership identity.',
+          'Begin serving | Take part in programs, campaigns and community initiatives.',
+        ],
+      },
+    }),
+    base('cms_home_cta', {
+      slug: 'home-cta',
+      type: 'page',
+      titleEnglish: 'Build the future through service.',
+      excerpt:
+        'Explore DPO membership, leadership roles and national programs, then choose where your contribution can matter most.',
+      status: 'published',
+      content: {},
+    }),
+    base('cms_action_plan', {
+      slug: 'action-plan',
+      type: 'page',
+      titleEnglish: 'Seven priorities. One national direction.',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'One Flag, One Nation, One Pakistan becomes a practical civic roadmap across institutions, unity, education, digital responsibility and public welfare.',
+      status: 'published',
+      content: {
+        image: '/dpo-assets/front-2.png',
+        bodyEnglish:
+          'Each priority supports the next. Strong institutions need responsible citizens; responsible citizens need awareness, unity and opportunity.',
+        items: [
+          'Strengthening National Institutions',
+          'Promoting Unity',
+          'One Nation, One Identity',
+          'Rule of Law',
+          'Civic Education',
+          'Digital Awareness',
+          'Prosperous Pakistan',
+        ],
+      },
+    }),
+    base('cms_membership', {
+      slug: 'membership',
+      type: 'page',
+      titleEnglish: 'Belong to something built on service.',
+      image: '/dpo-assets/home-mission-v2.jpg',
+      excerpt:
+        'Understand the membership types, required documents, terms, fee and approval journey before submitting your application.',
+      status: 'published',
+      content: {
+        image: '/dpo-assets/home-mission-v2.jpg',
+        bodyEnglish:
+          'Understand the membership types, required documents, terms, fee and approval journey before submitting your application.',
+        terms: [
+          'Every member must follow the organization constitution, code of conduct and policies.',
+          'Incorrect or incomplete information may lead to rejection or cancellation.',
+          'Membership approval remains subject to the authorized organization committee.',
+          'Activities against the reputation or purpose of the organization are not acceptable.',
+        ],
+        formFields: [
+          'Name',
+          'Father/guardian name',
+          'CNIC/B-Form',
+          'Date of birth',
+          'Mobile',
+          'Email',
+          'Address',
+          'City',
+          'Photo',
+          'Membership type',
+          'Consent/signature',
+        ],
+      },
+    }),
+    base('cms_designations', {
+      slug: 'designations',
+      type: 'page',
+      titleEnglish: 'Clear roles. Accountable leadership.',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'Explore DPO public designation structure, role responsibilities and the principles used for controlled leadership allocation.',
+      status: 'published',
+      content: {
+        image: '/dpo-assets/cms/designation-idea.png',
+        bodyEnglish:
+          'A designation represents a duty to organize, communicate and serve. Every appointment should be based on capability, local need and organizational approval.',
+        items: [
+          'Transparent review by authorized administration',
+          'Clear responsibilities for every role',
+          'No duplicate active designation in the same area',
+          'Official branding on approved letters and identity cards',
+        ],
+      },
+    }),
+    base('cms_card_design', {
+      slug: 'card-design',
+      type: 'page',
+      titleEnglish: 'Designed for recognition and trust.',
+      image: '/dpo-assets/home-mission-v2.jpg',
+      excerpt:
+        'A professional card system that balances clear public verification with responsible protection of member information.',
+      status: 'published',
+      content: {
+        image: '/dpo-assets/home-mission-v2.jpg',
+        bodyEnglish:
+          'The sample uses the supplied DPO identity while keeping the final member information structured, legible and easy to verify.',
+        frontItems: [
+          'Organization logo',
+          'Member photo',
+          'Member name',
+          'Membership ID',
+          'Designation',
+        ],
+        backItems: [
+          'QR code',
+          'Emergency contact',
+          'Card validity',
+          'Official website',
+          'Brief terms and conditions',
+        ],
+      },
+    }),
+    base('cms_gallery', {
+      slug: 'gallery',
+      type: 'page',
+      titleEnglish: 'Moments of unity, action and service.',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'A structured public archive for DPO events, campaigns, programs and official visual references.',
+      status: 'published',
+      content: { image: '/dpo-assets/home-hero-v2.jpg' },
+    }),
+    base('cms_legal', {
+      slug: 'legal',
+      type: 'page',
+      titleEnglish: 'Clear policies build public trust.',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'Review how DPO handles website use, member information, identity records, payments, refunds and donations.',
+      status: 'published',
+      content: { image: '/dpo-assets/home-hero-v2.jpg' },
+    }),
+    base('cms_contact', {
+      slug: 'contact',
+      type: 'page',
+      titleEnglish: 'Start a meaningful conversation.',
+      image: '/dpo-assets/home-mission-v2.jpg',
+      excerpt:
+        'Reach the organization for membership guidance, designation questions, partnerships, welfare coordination or general information.',
+      status: 'published',
+      content: { image: '/dpo-assets/home-mission-v2.jpg' },
+    }),
+    base('cms_member_services', {
+      slug: 'member-services',
+      type: 'page',
+      titleEnglish: 'Verification and support in one place.',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'Verify a member, request renewal, replace a card or submit a complaint through the connected DPO administration system.',
+      status: 'published',
+      content: { image: '/dpo-assets/home-hero-v2.jpg' },
+    }),
+    base('cms_application_status', {
+      slug: 'application-status',
+      type: 'page',
+      titleEnglish: 'Follow your application review.',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'Use your CNIC to check payment, document and administrative status.',
+      status: 'published',
+      content: { image: '/dpo-assets/home-hero-v2.jpg' },
+    }),
+    base('cms_membership_application', {
+      slug: 'membership-application',
+      type: 'page',
+      titleEnglish: 'Become an official DPO member.',
+      image: '/dpo-assets/home-mission-v2.jpg',
+      excerpt:
+        'Complete the guided application, upload your verification documents and receive an application number for tracking.',
+      status: 'published',
+      content: { image: '/dpo-assets/home-mission-v2.jpg' },
+    }),
+    base('cms_designation_application', {
+      slug: 'designation-application',
+      type: 'page',
+      titleEnglish: 'Apply to serve in a leadership role.',
+      image: '/dpo-assets/home-hero-v2.jpg',
+      excerpt:
+        'Choose an active designation, provide your area details and submit the documents required for formal review.',
+      status: 'published',
+      content: { image: '/dpo-assets/home-hero-v2.jpg' },
     }),
   ],
   'card-templates': [
@@ -703,6 +980,15 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       status: 'active',
       lastLoginAt: now,
     }),
+    base('admin_1002', {
+      name: 'Super Admin',
+      email: 'admin@dpo.org.pk',
+      passwordHash:
+        'scrypt:dpo-admin-seed-2026:aa4a4b706ef666481179cd9111b9362434a77faab86b2aa86731c1c1552392258b7eda7f45409328c7f4139552489a95474dd8da3a3ab9c449572a153b23ba2d',
+      role: 'Super Admin',
+      status: 'active',
+      lastLoginAt: now,
+    }),
   ],
   roles: [
     base('role_super_admin', {
@@ -746,6 +1032,27 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       group: 'organization',
       value:
         'Office no: 143, Street no: 08 Defense Officers Scheme no: 1, Malir Cantt, Karachi',
+      status: 'active',
+    }),
+    base('set_org_phone', {
+      key: 'organization_phone',
+      label: 'Phone',
+      group: 'organization',
+      value: '+92 300 1234567',
+      status: 'active',
+    }),
+    base('set_org_email', {
+      key: 'organization_email',
+      label: 'Email',
+      group: 'organization',
+      value: 'info@defendersofpakistan.org',
+      status: 'active',
+    }),
+    base('set_org_motto', {
+      key: 'organization_motto',
+      label: 'Motto',
+      group: 'organization',
+      value: 'One Flag | One Nation | One Pakistan',
       status: 'active',
     }),
     base('set_brand_logo_path', {
@@ -799,6 +1106,42 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       label: '15% service fee',
       group: 'fees',
       value: 15,
+      status: 'active',
+    }),
+    base('set_payment_account_title', {
+      key: 'payment_account_title',
+      label: 'Payment account title',
+      group: 'payments',
+      value: 'Defenders of Pakistan Organization',
+      status: 'active',
+    }),
+    base('set_payment_bank_name', {
+      key: 'payment_bank_name',
+      label: 'Bank name',
+      group: 'payments',
+      value: 'Bank name to be updated',
+      status: 'active',
+    }),
+    base('set_payment_account_number', {
+      key: 'payment_account_number',
+      label: 'Account number',
+      group: 'payments',
+      value: '000000000000',
+      status: 'active',
+    }),
+    base('set_payment_iban', {
+      key: 'payment_iban',
+      label: 'IBAN',
+      group: 'payments',
+      value: 'PK00BANK0000000000000000',
+      status: 'active',
+    }),
+    base('set_payment_instructions_note', {
+      key: 'payment_instructions_note',
+      label: 'Payment note',
+      group: 'payments',
+      value:
+        'Transfer the fee to this account and keep the receipt. Admin will verify payment manually before approval.',
       status: 'active',
     }),
   ],

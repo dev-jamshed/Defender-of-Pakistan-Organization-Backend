@@ -30,6 +30,7 @@ export type DpoStatus =
   | 'under_review'
   | 'approved'
   | 'active'
+  | 'inactive'
   | 'paid'
   | 'failed'
   | 'expired'
