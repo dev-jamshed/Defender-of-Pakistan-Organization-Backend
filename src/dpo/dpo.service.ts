@@ -458,6 +458,53 @@ export class DpoService {
     );
   }
 
+  async uploadCmsImage(payload: Record<string, unknown>) {
+    const dataUrl = this.toText(payload.dataUrl).trim();
+    const name = this.toText(payload.name).trim();
+    const match = dataUrl.match(
+      /^data:(image\/(?:jpeg|png|webp|gif));base64,([a-z0-9+/=\s]+)$/i,
+    );
+    if (!match) {
+      throw new BadRequestException('Only JPG, PNG, WebP or GIF images allowed');
+    }
+
+    const mimeType = match[1].toLowerCase();
+    const extensionMap: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/gif': 'gif',
+    };
+    const fileBuffer = Buffer.from(match[2].replace(/\s/g, ''), 'base64');
+    if (!fileBuffer.length || fileBuffer.length > 5 * 1024 * 1024) {
+      throw new BadRequestException('Image must be smaller than 5 MB');
+    }
+
+    const folder = 'cms';
+    const targetDirectory = resolve(
+      process.cwd(),
+      'storage',
+      'public-uploads',
+      folder,
+    );
+    await mkdir(targetDirectory, { recursive: true });
+    const safeName =
+      name
+        .replace(/\.[a-z0-9]+$/i, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 40) || 'cms-image';
+    const filename = `${safeName}-${Date.now()}.${extensionMap[mimeType]}`;
+    await writeFile(resolve(targetDirectory, filename), fileBuffer, {
+      flag: 'wx',
+    });
+    return {
+      url: `/uploads/${folder}/${filename}`,
+      name: filename,
+    };
+  }
+
   async getPublicSite() {
     const [
       cmsPages,

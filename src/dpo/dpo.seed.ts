@@ -702,6 +702,24 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
         ],
       },
     }),
+    base('cms_home_who_we_are', {
+      slug: 'home-who-we-are',
+      type: 'page',
+      titleEnglish: 'A community-driven organization for a stronger Pakistan.',
+      image: '/dpo-assets/home-mission-v2.jpg',
+      excerpt:
+        'DPO works at the grassroots level to create opportunities for positive social participation. Through educational programs, awareness campaigns, community services, welfare projects, leadership development and volunteer activities, the organization encourages unity, discipline, integrity and public service.',
+      status: 'published',
+      content: {
+        image: '/dpo-assets/home-mission-v2.jpg',
+        bodyEnglish:
+          'DPO works at the grassroots level to create opportunities for positive social participation. Through educational programs, awareness campaigns, community services, welfare projects, leadership development and volunteer activities, the organization encourages unity, discipline, integrity and public service.',
+        mission:
+          'Unite the people of Pakistan through patriotism, education, social welfare and community engagement while empowering youth to become responsible, ethical and productive citizens.',
+        vision:
+          'To become one of Pakistan trusted and impactful social organizations by creating a united, educated, disciplined and compassionate society.',
+      },
+    }),
     base('cms_home_impact', {
       slug: 'home-impact',
       type: 'page',
@@ -709,7 +727,17 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       excerpt:
         'Every number represents people choosing awareness, responsibility and public service.',
       status: 'published',
-      content: {},
+      content: {
+        eyebrow: 'Our growing impact',
+        bodyEnglish:
+          'Every number represents people choosing awareness, responsibility and public service.',
+        items: [
+          'Active Members | 10K+',
+          'Projects Completed | 250+',
+          'Volunteers | 500+',
+          'Programs | 7',
+        ],
+      },
     }),
     base('cms_home_values', {
       slug: 'home-values',

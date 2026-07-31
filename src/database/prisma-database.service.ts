@@ -163,11 +163,30 @@ export class PrismaDatabaseService implements OnModuleInit, OnModuleDestroy {
     for (const [resource, records] of Object.entries(seedData)) {
       for (const record of records) {
         const data = this.toStored(resource as ResourceName, record);
-        if (resource === 'cms-pages' || resource === 'settings') {
+        if (resource === 'settings') {
           const existing = await this.prisma.dpoRecord.findUnique({
             where: { id: record.id },
           });
           if (existing) {
+            continue;
+          }
+        }
+        if (resource === 'cms-pages') {
+          const existing = await this.prisma.dpoRecord.findUnique({
+            where: { id: record.id },
+          });
+          if (existing) {
+            const existingRecord = this.fromStored(existing);
+            const merged = this.mergeMissingRecord(existingRecord, record);
+            await this.prisma.dpoRecord.update({
+              where: { id: record.id },
+              data: {
+                resource: data.resource,
+                status: this.toOptionalString(merged.status),
+                dataJson: JSON.stringify(merged),
+                updatedAt: new Date(merged.updatedAt),
+              },
+            });
             continue;
           }
         }
@@ -184,6 +203,51 @@ export class PrismaDatabaseService implements OnModuleInit, OnModuleDestroy {
         });
       }
     }
+  }
+
+  private mergeMissingRecord(
+    existing: DpoRecord,
+    fallback: DpoRecord,
+  ): DpoRecord {
+    const merged = this.mergeMissingValue(existing, fallback) as DpoRecord;
+    return {
+      ...merged,
+      id: existing.id,
+      createdAt: existing.createdAt,
+      updatedAt: existing.updatedAt,
+    };
+  }
+
+  private mergeMissingValue(existing: unknown, fallback: unknown): unknown {
+    if (this.hasContent(existing)) {
+      if (
+        existing &&
+        fallback &&
+        typeof existing === 'object' &&
+        typeof fallback === 'object' &&
+        !Array.isArray(existing) &&
+        !Array.isArray(fallback)
+      ) {
+        const merged: Record<string, unknown> = {
+          ...(existing as Record<string, unknown>),
+        };
+        for (const [key, value] of Object.entries(
+          fallback as Record<string, unknown>,
+        )) {
+          merged[key] = this.mergeMissingValue(merged[key], value);
+        }
+        return merged;
+      }
+      return existing;
+    }
+    return fallback;
+  }
+
+  private hasContent(value: unknown): boolean {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
   }
 
   private toStored(resource: ResourceName, record: DpoRecord) {

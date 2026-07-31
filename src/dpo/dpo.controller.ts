@@ -98,6 +98,12 @@ export class DpoController {
     );
   }
 
+  @UseGuards(AdminAuthGuard)
+  @Post('admin/cms/upload')
+  uploadCmsImage(@Body() body: Record<string, unknown>) {
+    return this.dpoService.uploadCmsImage(body);
+  }
+
   @Get('public/verify/member/:membershipNumber')
   verifyMember(@Param('membershipNumber') membershipNumber: string) {
     return this.dpoService.verifyMember(membershipNumber);
