@@ -629,6 +629,11 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       status: 'published',
       content: {
         heroTitle: 'One Flag\nOne Nation\nOne Pakistan',
+        primaryCta: 'Become a Member',
+        primaryHref: '/apply/membership',
+        secondaryCta: 'Donate Now',
+        secondaryHref: '/contact',
+        emblemText: 'Pakistan Zindabad',
         bodyEnglish:
           'We are a non-profit organization committed to patriotism, national unity, youth empowerment, community welfare, education and human service for a strong, peaceful and progressive Pakistan.',
         logo: '/dpo-assets/logo-transparent.png',
@@ -711,13 +716,65 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
         'DPO works at the grassroots level to create opportunities for positive social participation. Through educational programs, awareness campaigns, community services, welfare projects, leadership development and volunteer activities, the organization encourages unity, discipline, integrity and public service.',
       status: 'published',
       content: {
+        eyebrow: 'Who We Are',
         image: '/dpo-assets/home-mission-v2.jpg',
         bodyEnglish:
           'DPO works at the grassroots level to create opportunities for positive social participation. Through educational programs, awareness campaigns, community services, welfare projects, leadership development and volunteer activities, the organization encourages unity, discipline, integrity and public service.',
+        sealTitle: 'Service-led',
+        sealText: 'Across Pakistan',
+        mediaCaption: 'Community. Education. Nation.',
+        missionTitle: 'Our mission',
+        visionTitle: 'Our vision',
+        linkLabel: 'Discover our story',
+        linkHref: '/about',
         mission:
           'Unite the people of Pakistan through patriotism, education, social welfare and community engagement while empowering youth to become responsible, ethical and productive citizens.',
         vision:
           'To become one of Pakistan trusted and impactful social organizations by creating a united, educated, disciplined and compassionate society.',
+      },
+    }),
+    base('cms_home_portals', {
+      slug: 'home-portals',
+      type: 'page',
+      titleEnglish: 'Home Portal Cards',
+      image: '/dpo-assets/join_mission.png',
+      excerpt:
+        'Homepage cards for membership, merchandise and quick access.',
+      status: 'published',
+      content: {
+        eyebrow: 'Join our mission',
+        image: '/dpo-assets/join_mission.png',
+        secondaryImage: '/dpo-assets/merch.png',
+        primaryCta: 'Join now',
+        primaryHref: '/apply/membership',
+        secondaryCta: 'Shop now',
+        secondaryHref: '/contact',
+        missionFeatures: [
+          'Official Membership Card',
+          'Priority Invitations',
+          'Training & Workshops',
+          'Volunteer Opportunities',
+        ],
+        merchandiseFeatures: [
+          'Premium Quality',
+          'Official Logo',
+          'Nationwide Delivery',
+          'Support A Cause',
+        ],
+        quickEyebrow: 'Quick Access',
+        quickLinks: [
+          'Membership | /membership',
+          'Donate | /contact',
+          'Downloads | /legal',
+          'Events | /action-plan',
+          'Gallery | /gallery',
+          'Documents | /legal',
+        ],
+        items: [
+          'Become a Member | Be a part of a patriotic movement for positive change. Together we can build a better Pakistan.',
+          'Official Merchandise | Wear your pride. Represent your nation.',
+          'All in one place. | Together we can build a stronger, united and progressive Pakistan.',
+        ],
       },
     }),
     base('cms_home_impact', {
@@ -728,6 +785,7 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
         'Every number represents people choosing awareness, responsibility and public service.',
       status: 'published',
       content: {
+        image: '',
         eyebrow: 'Our growing impact',
         bodyEnglish:
           'Every number represents people choosing awareness, responsibility and public service.',
@@ -747,6 +805,8 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
         'Clear principles keep public service accountable, inclusive and focused on long-term national progress.',
       status: 'published',
       content: {
+        eyebrow: 'Our Foundation',
+        image: '',
         items: [
           'Patriotism | Love, respect and commitment to Pakistan.',
           'Unity | Strengthening harmony among all citizens.',
@@ -767,6 +827,10 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
         'A transparent path from choosing your membership type to receiving an official, verifiable identity.',
       status: 'published',
       content: {
+        eyebrow: 'Membership',
+        image: '',
+        primaryCta: 'Start membership application',
+        primaryHref: '/apply/membership',
         items: [
           'Choose your path | Select the membership type that matches your role and commitment.',
           'Verify details | Submit the required identity and contact information securely.',
@@ -782,7 +846,16 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       excerpt:
         'Explore DPO membership, leadership roles and national programs, then choose where your contribution can matter most.',
       status: 'published',
-      content: {},
+      content: {
+        eyebrow: 'Next Step',
+        image: '',
+        bodyEnglish:
+          'Explore DPO membership, leadership roles and national programs, then choose where your contribution can matter most.',
+        primaryCta: 'Join the organization',
+        primaryHref: '/membership',
+        secondaryCta: 'Talk to our team',
+        secondaryHref: '/contact',
+      },
     }),
     base('cms_action_plan', {
       slug: 'action-plan',
@@ -793,6 +866,9 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
         'One Flag, One Nation, One Pakistan becomes a practical civic roadmap across institutions, unity, education, digital responsibility and public welfare.',
       status: 'published',
       content: {
+        eyebrow: '7-Point Action Plan',
+        primaryCta: 'Explore the plan',
+        primaryHref: '/action-plan',
         image: '/dpo-assets/front-2.png',
         bodyEnglish:
           'Each priority supports the next. Strong institutions need responsible citizens; responsible citizens need awareness, unity and opportunity.',
