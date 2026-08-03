@@ -889,17 +889,55 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       titleEnglish: 'Belong to something built on service.',
       image: '/dpo-assets/home-mission-v2.jpg',
       excerpt:
-        'Understand the membership types, required documents, terms, fee and approval journey before submitting your application.',
+        'Understand the required documents, terms, fee and approval journey before submitting your application.',
       status: 'published',
       content: {
+        eyebrow: 'Membership',
+        index: '03',
         image: '/dpo-assets/home-mission-v2.jpg',
         bodyEnglish:
-          'Understand the membership types, required documents, terms, fee and approval journey before submitting your application.',
-        terms: [
-          'Every member must follow the organization constitution, code of conduct and policies.',
-          'Incorrect or incomplete information may lead to rejection or cancellation.',
-          'Membership approval remains subject to the authorized organization committee.',
-          'Activities against the reputation or purpose of the organization are not acceptable.',
+          'Understand the required documents, terms, fee and approval journey before submitting your application.',
+      },
+    }),
+    base('cms_membership_summary', {
+      slug: 'membership-summary',
+      type: 'page',
+      titleEnglish: 'Membership Summary',
+      status: 'published',
+      content: {
+        memberLabel: 'Membership',
+        memberValue: 'Simple Member',
+        feeLabel: 'Membership fee',
+        feeValue: 'PKR 2,000',
+        validityLabel: 'Validity',
+        validityValue: 'One year',
+        documentsLabel: 'Required documents',
+        documentsValue: '5 items',
+      },
+    }),
+    base('cms_membership_readiness', {
+      slug: 'membership-readiness',
+      type: 'page',
+      titleEnglish: 'Prepare once. Apply with confidence.',
+      excerpt:
+        'Keeping the right information ready reduces delays and makes verification easier for the administration team.',
+      status: 'published',
+      content: {
+        eyebrow: 'Application Readiness',
+        image: '',
+        bodyEnglish:
+          'Keeping the right information ready reduces delays and makes verification easier for the administration team.',
+        documentsTitle: 'Required documents',
+        fieldsTitle: 'Application information',
+        panelEyebrow: 'Approval journey',
+        panelTitle: 'Four clear steps to membership.',
+        primaryCta: 'Ask about applying',
+        primaryHref: '/contact',
+        items: [
+          'Provide personal details',
+          'Upload required documents',
+          'Administrative review and approval',
+          'Receive official member identity',
         ],
         formFields: [
           'Name',
@@ -911,9 +949,84 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
           'Address',
           'City',
           'Photo',
-          'Membership type',
           'Consent/signature',
         ],
+      },
+    }),
+    base('cms_membership_card', {
+      slug: 'membership-card',
+      type: 'page',
+      titleEnglish: 'A membership card designed for trust.',
+      excerpt:
+        'Approved identity details, validity and verification information should remain clear while sensitive personal information stays protected.',
+      status: 'published',
+      content: {
+        eyebrow: 'Official Identity',
+        image: '',
+        bodyEnglish:
+          'Approved identity details, validity and verification information should remain clear while sensitive personal information stays protected.',
+        frontTitle: 'Front side',
+        backTitle: 'Back side',
+        primaryCta: 'Explore card design',
+        primaryHref: '/card-design',
+        frontItems: [
+          'Organization logo',
+          'Member photo',
+          'Member name',
+          'Membership ID',
+          'Designation',
+        ],
+        backItems: [
+          'QR code',
+          'Emergency contact',
+          'Card validity',
+          'Official website',
+          'Brief terms and conditions',
+        ],
+      },
+    }),
+    base('cms_membership_responsibility', {
+      slug: 'membership-responsibility',
+      type: 'page',
+      titleEnglish: 'Membership is a commitment, not just a card.',
+      excerpt:
+        "Every member is expected to protect the organization's purpose, trust and public reputation.",
+      status: 'published',
+      content: {
+        eyebrow: 'Member Responsibility',
+        image: '',
+        bodyEnglish:
+          "Every member is expected to protect the organization's purpose, trust and public reputation.",
+        terms: [
+          'Every member must follow the organization constitution, code of conduct and policies.',
+          'Incorrect or incomplete information may lead to rejection or cancellation.',
+          'Membership approval remains subject to the authorized organization committee.',
+          'Activities against the reputation or purpose of the organization are not acceptable.',
+        ],
+        items: [
+          'Every member must follow the organization constitution, code of conduct and policies.',
+          'Incorrect or incomplete information may lead to rejection or cancellation.',
+          'Membership approval remains subject to the authorized organization committee.',
+          'Activities against the reputation or purpose of the organization are not acceptable.',
+        ],
+      },
+    }),
+    base('cms_membership_cta', {
+      slug: 'membership-cta',
+      type: 'page',
+      titleEnglish: 'Ready to begin your membership journey?',
+      excerpt:
+        'Keep your identity documents ready and complete the guided online application for administrative review.',
+      status: 'published',
+      content: {
+        eyebrow: 'Next Step',
+        image: '',
+        bodyEnglish:
+          'Keep your identity documents ready and complete the guided online application for administrative review.',
+        primaryCta: 'Apply for membership',
+        primaryHref: '/apply/membership',
+        secondaryCta: 'Track an application',
+        secondaryHref: '/application-status',
       },
     }),
     base('cms_designations', {
@@ -1175,14 +1288,9 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
     }),
     base('set_membership_types', {
       key: 'membership_types',
-      label: 'Membership types',
+      label: 'Membership',
       group: 'membership',
-      value: [
-        'General Member',
-        'Volunteer Member',
-        'Executive Member',
-        'Life Time Member',
-      ],
+      value: ['Member'],
       status: 'active',
     }),
     base('set_membership_required_documents', {
