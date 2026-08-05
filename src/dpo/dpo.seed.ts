@@ -1049,6 +1049,20 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
         ],
       },
     }),
+    base('cms_designations_metrics', {
+      slug: 'designations-metrics',
+      type: 'page',
+      titleEnglish: 'Designation Metrics',
+      status: 'published',
+      content: {
+        rolesLabel: 'Published roles',
+        rolesValue: '33',
+        feeLabel: 'Designation fee',
+        feeValue: 'As configured',
+        durationLabel: 'Appointment duration',
+        durationValue: 'As configured',
+      },
+    }),
     base('cms_card_design', {
       slug: 'card-design',
       type: 'page',
@@ -1115,7 +1129,39 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       excerpt:
         'Verify a member, request renewal, replace a card or submit a complaint through the connected DPO administration system.',
       status: 'published',
-      content: { image: '/dpo-assets/home-hero-v2.jpg' },
+      content: {
+        eyebrow: 'Member Services',
+        index: 'SERVICES',
+        image: '/dpo-assets/home-hero-v2.jpg',
+        bodyEnglish:
+          'Verify a member, request renewal, replace a card or submit a complaint through the connected DPO administration system.',
+      },
+    }),
+    base('cms_member_services_renewal', {
+      slug: 'member-services-renewal',
+      type: 'page',
+      titleEnglish: 'Request membership renewal',
+      excerpt:
+        'Active or expired members can send a renewal request for admin review.',
+      status: 'published',
+      content: {
+        bodyEnglish:
+          'Active or expired members can send a renewal request for admin review.',
+        identifierLabel: 'Membership number',
+        identifierPlaceholder: 'DPO-2026-1001',
+        expiryLabel: 'Requested expiry date',
+        documentLabel: 'Supporting document',
+        documentName: 'Renewal Supporting Document',
+        submitButton: 'Submit renewal',
+        secureNote:
+          'Securely recorded for authorized administrative review.',
+        notEligibleMessage: 'This membership is not eligible for renewal.',
+        successTitle: 'Renewal request submitted',
+        successPrefix: 'Reference',
+        successText: 'Payment remains pending until confirmed by DPO.',
+        errorTitle: 'Renewal could not be submitted',
+        errorText: 'Please check the membership number.',
+      },
     }),
     base('cms_application_status', {
       slug: 'application-status',
@@ -1145,7 +1191,45 @@ export const seedData: Record<ResourceName, DpoRecord[]> = {
       excerpt:
         'Choose an active designation, provide your area details and submit the documents required for formal review.',
       status: 'published',
-      content: { image: '/dpo-assets/home-hero-v2.jpg' },
+      content: {
+        eyebrow: 'Designation Application',
+        index: 'APPLY',
+        image: '/dpo-assets/home-hero-v2.jpg',
+        bodyEnglish:
+          'Choose an active designation, provide your area details and submit the documents required for formal review.',
+        progressLabel: 'Application progress',
+        formTitle: 'Apply for a designation',
+        formText: 'Your details remain editable until the final submission.',
+        privacyNote:
+          'CNIC is masked in application records. Original files remain available only for authorized review.',
+        stepPrefix: 'Step',
+        formSteps: ['Role', 'Personal details', 'Location', 'Documents'],
+        stepTitles: [
+          'Choose a leadership role',
+          'Tell us about yourself',
+          'Confirm the requested area',
+          'Upload verification documents',
+        ],
+        stepDescriptions: [
+          'Select an available designation and share your relevant experience.',
+          'Use accurate identity and contact information for administrative review.',
+          'Designation availability is checked by district and local area.',
+          'The admin team will verify each document before making a decision.',
+        ],
+        previousButton: 'Previous',
+        nextButton: 'Continue',
+        submitButton: 'Submit application',
+        submittingText: 'Submitting',
+        documentsAlertTitle: 'Document privacy',
+        documentsAlertText:
+          'Upload clear images. Each file can be up to 5 MB and will remain pending until an authorized admin reviews it.',
+        cnicFrontLabel: 'CNIC front',
+        cnicBackLabel: 'CNIC back',
+        photoLabel: 'Profile photo',
+        termsIntro: 'I confirm that the information is correct and I agree to the',
+        termsLabel: 'terms and conditions',
+        privacyLabel: 'CNIC privacy policy',
+      },
     }),
   ],
   'card-templates': [
